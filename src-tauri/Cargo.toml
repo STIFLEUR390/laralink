@@ -1,0 +1,40 @@
+[package]
+name = "laralink"
+version = "0.1.0"
+description = "Laralink — gérez et lancez vos projets Laravel sur le réseau local"
+authors = ["Laralink"]
+license = "MIT"
+edition = "2021"
+
+[lib]
+name = "laralink_lib"
+crate-type = [
+  "staticlib",
+  "cdylib",
+  "rlib"
+]
+
+[build-dependencies.tauri-build]
+version = "2.6.3"
+features = [ ]
+
+[dependencies]
+tauri = { version = "2.11.5", features = ["unstable"] }
+tauri-plugin-dialog = "2.7.2"
+tauri-plugin-cli = "2.4.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+argon2 = "0.5"
+rand_core = { version = "0.6", features = ["getrandom"] }
+chrono = { version = "0.4", features = ["serde"] }
+get_if_addrs = "0.5"
+mysql = "26"
+postgres = "0.19"
+open = "5"
+thiserror = "2"
+regex = "1"
+
+[features]
+default = ["desktop"]
+desktop = ["tauri/tray-icon"]

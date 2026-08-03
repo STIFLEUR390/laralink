@@ -1,0 +1,19 @@
+{
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "main",
+	"description": "Capabilités de la fenêtre principale Laralink",
+	"windows": [
+		"main"
+	],
+	"permissions": [
+		"core:path:default",
+		"core:event:default",
+		"core:window:default",
+		"core:app:default",
+		"core:resources:default",
+		"core:menu:default",
+		"core:tray:default",
+		"dialog:default",
+		"cli:default"
+	]
+}

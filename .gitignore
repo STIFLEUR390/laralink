@@ -1,0 +1,35 @@
+# Dépendances
+node_modules/
+
+# Builds Nuxt
+.nuxt/
+.output/
+dist/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Environnement
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+.zed/
+*.swp
+
+# Agents / outillage local
+.agents/
+.claude/
+.codegraph/
+graphify-out/
+
+# Système
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

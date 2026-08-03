@@ -1,0 +1,89 @@
+{
+	"$schema": "./gen/schemas/desktop-schema.json",
+	"productName": "Laralink",
+	"version": "0.1.0",
+	"identifier": "com.laralink.app",
+	"build": {
+		"beforeBuildCommand": "bun run generate",
+		"frontendDist": "../dist",
+		"beforeDevCommand": "bun run dev",
+		"devUrl": "http://localhost:3000"
+	},
+	"plugins": {
+		"cli": {
+			"description": "Laralink — lancez vos projets Laravel sur le réseau local",
+			"longDescription": "Contrôlez le lancement de vos projets Laravel depuis le terminal.",
+			"args": [
+				{
+					"short": "p",
+					"name": "project",
+					"description": "Slug du projet",
+					"takesValue": true
+				}
+			],
+			"subcommands": {
+				"start": {
+					"description": "Démarre un projet",
+					"args": [
+						{
+							"name": "project",
+							"index": 1,
+							"takesValue": true
+						}
+					]
+				},
+				"stop": {
+					"description": "Arrête un projet",
+					"args": [
+						{
+							"name": "project",
+							"index": 1,
+							"takesValue": true
+						}
+					]
+				}
+			}
+		}
+	},
+	"app": {
+		"windows": [
+			{
+				"label": "main",
+				"title": "Laralink",
+				"width": 1280,
+				"height": 800,
+				"minWidth": 960,
+				"minHeight": 640,
+				"resizable": true,
+				"fullscreen": false,
+				"center": true
+			}
+		],
+		"security": {
+			"csp": null
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": "all",
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		],
+		"category": "DeveloperTool",
+		"shortDescription": "Lancez vos projets Laravel sur le réseau local",
+		"longDescription": "Laralink gère plusieurs projets Laravel locaux, chacun avec sa propre version PHP, sa base de données et son port, et les expose sur le réseau local avec URL et QR code.",
+		"windows": {
+			"certificateThumbprint": null,
+			"digestAlgorithm": "sha256",
+			"timestampUrl": ""
+		},
+		"linux": {
+			"deb": {}
+		},
+		"macOS": {}
+	}
+}

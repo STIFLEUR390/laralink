@@ -1,0 +1,116 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme {
+	--font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+	--font-heading: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+	--font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", monospace;
+
+	/* Échelle de marque Laralink (teal) */
+	--color-brand-50: #eef7f6;
+	--color-brand-100: #d6ecea;
+	--color-brand-200: #aed9d6;
+	--color-brand-300: #7fc0bd;
+	--color-brand-400: #4fa09f;
+	--color-brand-500: #2c8084;
+	--color-brand-600: #01696f;
+	--color-brand-700: #0a545a;
+	--color-brand-800: #0e444a;
+	--color-brand-900: #103a3f;
+	--color-brand-950: #042125;
+}
+
+/* Tokens de surface Laralink (mode clair / sombre) */
+:root {
+	--brand-bg: #f7f6f2;
+	--brand-surface: #f9f8f5;
+	--brand-text: #28251d;
+	--brand-muted: #7a7974;
+	--brand-primary: #01696f;
+	--brand-primary-soft: #cedcd8;
+	--brand-border: #d4d1ca;
+	--brand-grid: rgba(1, 105, 111, 0.05);
+}
+
+.dark {
+	--brand-bg: #171614;
+	--brand-surface: #1c1b19;
+	--brand-text: #cdccca;
+	--brand-muted: #797876;
+	--brand-primary: #4f98a3;
+	--brand-primary-soft: #313b3b;
+	--brand-border: #393836;
+	--brand-grid: rgba(79, 152, 163, 0.05);
+}
+
+@layer base {
+	html {
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	body {
+		background-color: var(--brand-bg);
+		color: var(--brand-text);
+		font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+	}
+
+	/* Fond technique : grille de points subtile */
+	body::before {
+		content: "";
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		z-index: 0;
+		background-image: radial-gradient(var(--brand-grid) 1px, transparent 1px);
+		background-size: 24px 24px;
+	}
+
+	::selection {
+		background: var(--brand-primary-soft);
+	}
+}
+
+@layer utilities {
+	img {
+		user-select: none;
+		-webkit-user-drag: none;
+	}
+
+	/* Animations de page */
+	.page-enter-active,
+	.page-leave-active {
+		transition: opacity 0.18s ease, transform 0.18s ease;
+	}
+
+	.page-enter-from,
+	.page-leave-to {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+
+	.layout-enter-active,
+	.layout-leave-active {
+		transition: opacity 0.18s ease;
+	}
+
+	.layout-enter-from,
+	.layout-leave-to {
+		opacity: 0;
+	}
+
+	/* Barre de défilement discrète */
+	::-webkit-scrollbar {
+		width: 10px;
+		height: 10px;
+	}
+
+	::-webkit-scrollbar-thumb {
+		background: var(--brand-border);
+		border-radius: 8px;
+		border: 2px solid var(--brand-bg);
+	}
+
+	::-webkit-scrollbar-thumb:hover {
+		background: var(--brand-muted);
+	}
+}
