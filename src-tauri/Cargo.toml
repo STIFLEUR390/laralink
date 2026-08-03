@@ -31,11 +31,19 @@ chrono = { version = "0.4", features = ["serde"] }
 get_if_addrs = "0.5"
 mysql = "26"
 postgres = "0.19"
-open = "5"
 thiserror = "2"
 regex = "1"
 tauri-plugin-clipboard-manager = "2.3.2"
+log = "0.4"
 
 [features]
 default = ["desktop"]
 desktop = ["tauri/tray-icon"]
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-autostart = "2.5.1"
+tauri-plugin-log = "2.9.0"
+tauri-plugin-notification = "2.3.3"
+tauri-plugin-opener = "2.5.4"
+tauri-plugin-single-instance = "2.4.3"
+tauri-plugin-updater = "2.10.1"

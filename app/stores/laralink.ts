@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { listen } from "@tauri-apps/api/event";
+import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { commands, EVENTS, isTauriEnv } from "../services/commands";
 import type {
 	AppSettingsView,
@@ -187,9 +188,20 @@ export const useLaralinkStore = defineStore("laralink", () => {
 
 	// --- Init -------------------------------------------------------------
 
+	async function ensureNotificationPermission() {
+		if (!isTauriEnv()) return;
+		try {
+			if (!(await isPermissionGranted())) {
+				await requestPermission();
+			}
+		} catch {
+			// silencieux : la notification reste optionnelle
+		}
+	}
+
 	async function init() {
 		if (isTauriEnv()) {
-			await Promise.all([loadProjects(), loadSettings(), listenToBackend()]);
+			await Promise.all([loadProjects(), loadSettings(), listenToBackend(), ensureNotificationPermission()]);
 			await refreshStatus();
 		} else {
 			// Mode aperçu navigateur (sans backend Tauri)

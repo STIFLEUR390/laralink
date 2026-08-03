@@ -15,6 +15,11 @@
 		"core:tray:default",
 		"dialog:default",
 		"clipboard-manager:allow-write-text",
-		"cli:default"
+		"cli:default",
+		"autostart:default",
+		"log:default",
+		"notification:default",
+		"opener:default",
+		"updater:default"
 	]
 }

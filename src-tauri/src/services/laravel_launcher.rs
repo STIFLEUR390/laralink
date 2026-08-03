@@ -18,6 +18,7 @@ use crate::AppState;
 #[derive(Debug, Clone)]
 pub struct LaunchConfig {
 	pub project_id: i64,
+	pub project_name: String,
 	pub laravel_path: PathBuf,
 	pub runtime: RuntimeInput,
 	pub bind_host: String,
@@ -239,7 +240,19 @@ pub fn run_launch(app: AppHandle, cfg: LaunchConfig, session_id: i64) {
 
 	// 9. Ouverture navigateur si demandé
 	if cfg.auto_open_browser {
-		let _ = open::that(&url);
+		use tauri_plugin_opener::OpenerExt;
+		let _ = app.opener().open_url(url.clone(), None::<&str>);
+	}
+
+	// Notification native : le projet est en ligne.
+	{
+		use tauri_plugin_notification::NotificationExt;
+		let _ = app
+			.notification()
+			.builder()
+			.title("Laralink — projet en ligne")
+			.body(format!("{} est accessible sur {}", cfg.project_name, url))
+			.show();
 	}
 
 	// 10. Attente de la fin du processus

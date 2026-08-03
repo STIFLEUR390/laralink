@@ -184,6 +184,7 @@ fn launch_flow_e2e() {
 
 	let cfg = crate::services::laravel_launcher::LaunchConfig {
 		project_id: 1,
+		project_name: "E2E".into(),
 		laravel_path: std::path::PathBuf::from(&project),
 		runtime: RuntimeInput {
 			runtime_type: "system_php".into(),

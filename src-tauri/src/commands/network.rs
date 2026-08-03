@@ -37,7 +37,10 @@ pub fn get_project_network(state: State<'_, AppState>, project_id: i64) -> AppRe
 }
 
 #[tauri::command]
-pub fn open_url(url: String) -> AppResult<()> {
-	open::that(&url).map_err(|e| crate::error::AppError::Message(format!("Impossible d'ouvrir le navigateur : {e}")))?;
+pub fn open_url(app: tauri::AppHandle, url: String) -> AppResult<()> {
+	use tauri_plugin_opener::OpenerExt;
+	app.opener()
+		.open_url(url, None::<&str>)
+		.map_err(|e| crate::error::AppError::Message(format!("Impossible d'ouvrir le navigateur : {e}")))?;
 	Ok(())
 }

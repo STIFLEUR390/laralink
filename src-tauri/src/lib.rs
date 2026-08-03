@@ -32,8 +32,27 @@ use tauri::{
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-	tauri::Builder::default()
+	let mut builder = tauri::Builder::default();
+
+	// Instance unique : une seule app à la fois (évite deux serveurs en conflit).
+	#[cfg(desktop)]
+	{
+		builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+			handle_secondary_instance(app, args, cwd);
+		}));
+	}
+
+	builder
 		.setup(|app| {
+			#[cfg(desktop)]
+			{
+				// Démarrage automatique au boot du système.
+				app.handle().plugin(tauri_plugin_autostart::init(
+					tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+					None::<Vec<&str>>,
+				))?;
+			}
+
 			// Base de données SQLite + migrations versionnées.
 			let conn = db::open(app.handle())?;
 			app.manage(AppState {
@@ -60,21 +79,7 @@ pub fn run() {
 			let cli_action = parse_cli_action(app.handle())?;
 
 			if let Some((action, project_id)) = cli_action {
-				let app_handle = app.handle().clone();
-				std::thread::spawn(move || {
-					std::thread::sleep(std::time::Duration::from_millis(1500));
-					let state_app = app_handle.clone();
-					let state = state_app.state::<AppState>();
-					match action.as_str() {
-						"start" => {
-							let _ = crate::commands::launcher::start_project(app_handle, state, project_id);
-						}
-						"stop" => {
-							let _ = crate::commands::launcher::stop_project(app_handle, state, project_id);
-						}
-						_ => {}
-					}
-				});
+				spawn_cli_action(app.handle().clone(), action, project_id);
 			} else if auto_launch.0 {
 				if let Some(pid) = auto_launch.1 {
 					let app_handle = app.handle().clone();
@@ -85,6 +90,15 @@ pub fn run() {
 						let _ = crate::commands::launcher::start_project(app_handle, state, pid);
 					});
 				}
+			}
+
+			// Vérification des mises à jour en arrière-plan (releases GitHub).
+			#[cfg(desktop)]
+			{
+				let handle = app.handle().clone();
+				tauri::async_runtime::spawn(async move {
+					check_updates(handle).await;
+				});
 			}
 
 			// Tray icon : afficher / quitter.
@@ -118,9 +132,23 @@ pub fn run() {
 
 			Ok(())
 		})
+		.plugin(
+			tauri_plugin_log::Builder::new()
+				.level(log::LevelFilter::Info)
+				.targets([
+					tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+					tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+						file_name: Some("laralink".into()),
+					}),
+				])
+				.build(),
+		)
 		.plugin(tauri_plugin_dialog::init())
 		.plugin(tauri_plugin_clipboard_manager::init())
 		.plugin(tauri_plugin_cli::init())
+		.plugin(tauri_plugin_notification::init())
+		.plugin(tauri_plugin_opener::init())
+		.plugin(tauri_plugin_updater::Builder::new().build())
 		.invoke_handler(tauri::generate_handler![
 			// Projets
 			commands::projects::list_projects,
@@ -158,6 +186,10 @@ pub fn run() {
 		.run(tauri::generate_context!())
 		.expect("error while running tauri application");
 }
+
+// ---------------------------------------------------------------------------
+// CLI + instance unique
+// ---------------------------------------------------------------------------
 
 /// Analyse les arguments CLI : `laralink start <slug>` / `laralink stop <slug>`.
 /// Retourne (action, project_id) ou None.
@@ -200,4 +232,112 @@ fn parse_cli_action(app: &tauri::AppHandle) -> AppResult<Option<(String, i64)>> 
 		)
 		.ok();
 	Ok(project_id.map(|id| (action, id)))
+}
+
+/// Lance start/stop dans un thread dédié (après un court délai d'init).
+fn spawn_cli_action(app_handle: tauri::AppHandle, action: String, project_id: i64) {
+	std::thread::spawn(move || {
+		std::thread::sleep(std::time::Duration::from_millis(1500));
+		let state_app = app_handle.clone();
+		let state = state_app.state::<AppState>();
+		match action.as_str() {
+			"start" => {
+				let _ = crate::commands::launcher::start_project(app_handle, state, project_id);
+			}
+			"stop" => {
+				let _ = crate::commands::launcher::stop_project(app_handle, state, project_id);
+			}
+			_ => {}
+		}
+	});
+}
+
+/// Deuxième instance détectée : focus de la fenêtre + traitement CLI éventuel.
+#[cfg(desktop)]
+fn handle_secondary_instance(app: &tauri::AppHandle, args: Vec<String>, _cwd: String) {
+	if let Some(window) = app.get_webview_window("main") {
+		let _ = window.show();
+		let _ = window.unminimize();
+		let _ = window.set_focus();
+	}
+
+	let mut action: Option<String> = None;
+	let mut slug: Option<String> = None;
+	for a in &args {
+		match a.as_str() {
+			"start" | "stop" => action = Some(a.clone()),
+			other if action.is_some() && slug.is_none() && !other.starts_with('-') => {
+				slug = Some(other.to_string());
+			}
+			_ => {}
+		}
+	}
+	let (Some(action), Some(slug)) = (action, slug) else { return };
+
+	let state = app.state::<AppState>();
+	let db = match state.db.lock() {
+		Ok(db) => db,
+		Err(_) => return,
+	};
+	let project_id = match db.query_row(
+		"SELECT id FROM projects WHERE slug = ?1",
+		[&slug],
+		|r| r.get::<_, i64>(0),
+	) {
+		Ok(id) => id,
+		Err(_) => return,
+	};
+	drop(db);
+
+	let app_handle = app.clone();
+	std::thread::spawn(move || {
+		let state_app = app_handle.clone();
+		let state = state_app.state::<AppState>();
+		match action.as_str() {
+			"start" => {
+				let _ = crate::commands::launcher::start_project(app_handle, state, project_id);
+			}
+			"stop" => {
+				let _ = crate::commands::launcher::stop_project(app_handle, state, project_id);
+			}
+			_ => {}
+		}
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Mises à jour
+// ---------------------------------------------------------------------------
+
+/// Vérifie les mises à jour sur les releases GitHub et notifie si besoin.
+#[cfg(desktop)]
+async fn check_updates(app: tauri::AppHandle) {
+	use tauri_plugin_notification::NotificationExt;
+	use tauri_plugin_updater::UpdaterExt;
+
+	match app.updater() {
+		Ok(updater) => match updater.check().await {
+			Ok(Some(update)) => {
+				log::info!("Mise à jour disponible : v{}", update.version);
+				let _ = app
+					.notification()
+					.builder()
+					.title("Laralink")
+					.body(format!(
+						"La version {} est disponible — consultez les releases GitHub.",
+						update.version
+					))
+					.show();
+			}
+			Ok(None) => {
+				log::info!("Aucune mise à jour disponible.");
+			}
+			Err(e) => {
+				log::debug!("Vérification des mises à jour impossible : {e}");
+			}
+		},
+		Err(e) => {
+			log::debug!("Plugin updater indisponible : {e}");
+		}
+	}
 }

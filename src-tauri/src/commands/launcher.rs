@@ -87,9 +87,10 @@ fn load_launch_config(conn: &rusqlite::Connection, project_id: i64) -> AppResult
 		)
 		.optional()?;
 
-	let (_, laravel_path, auto_open_browser) = project;
+	let (name, laravel_path, auto_open_browser) = project;
 	Ok(LaunchConfig {
 		project_id,
+		project_name: name,
 		laravel_path: std::path::PathBuf::from(laravel_path),
 		runtime,
 		bind_host,
