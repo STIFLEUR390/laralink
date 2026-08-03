@@ -34,6 +34,7 @@ postgres = "0.19"
 open = "5"
 thiserror = "2"
 regex = "1"
+tauri-plugin-clipboard-manager = "2.3.2"
 
 [features]
 default = ["desktop"]

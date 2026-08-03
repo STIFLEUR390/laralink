@@ -119,6 +119,7 @@ pub fn run() {
 			Ok(())
 		})
 		.plugin(tauri_plugin_dialog::init())
+		.plugin(tauri_plugin_clipboard_manager::init())
 		.plugin(tauri_plugin_cli::init())
 		.invoke_handler(tauri::generate_handler![
 			// Projets
