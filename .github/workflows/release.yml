@@ -1,0 +1,129 @@
+name: Release
+
+# Build les installateurs Windows (NSIS/MSI) et Linux (AppImage/deb/rpm),
+# publie les assets et génère latest.json pour l'updater.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            args: ''
+          - platform: windows-latest
+            args: ''
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build & publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Laralink ${{ github.ref_name }}'
+          releaseBody: |
+            Release automatique — build Windows et Linux.
+
+            Assets : installer NSIS (.exe), MSI, AppImage, .deb, .rpm + signatures updater.
+          releaseDraft: true
+          prerelease: false
+
+  # Génère latest.json (manifeste updater) à partir des signatures publiées.
+  latest-json:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download signatures
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p assets
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern '*.sig' --dir assets
+
+      - name: Generate latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'EOF'
+          import glob, json, os
+          from datetime import datetime, timezone
+
+          tag = os.environ["TAG"].lstrip("v")
+          repo = os.environ["GITHUB_REPOSITORY"]
+          base = f"https://github.com/{repo}/releases/download/{os.environ['TAG']}"
+
+          def read_sig(pattern):
+              files = glob.glob(f"assets/{pattern}")
+              return open(files[0]).read().strip() if files else None
+
+          platforms = {}
+
+          linux_sig = read_sig("*_amd64.AppImage.sig")
+          if linux_sig:
+              platforms["linux-x86_64"] = {
+                  "signature": linux_sig,
+                  "url": f"{base}/Laralink_{tag}_amd64.AppImage",
+              }
+
+          win_sig = read_sig("*_x64-setup.exe.sig")
+          if win_sig:
+              platforms["windows-x86_64"] = {
+                  "signature": win_sig,
+                  "url": f"{base}/Laralink_{tag}_x64-setup.exe",
+              }
+
+          if not platforms:
+              print("Aucune signature trouvée, skip latest.json")
+              raise SystemExit(0)
+
+          manifest = {
+              "version": tag,
+              "notes": f"Laralink v{tag}",
+              "pub_date": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "platforms": platforms,
+          }
+          with open("latest.json", "w") as f:
+              json.dump(manifest, f, indent=2)
+          print("latest.json généré :", list(platforms.keys()))
+          EOF
+
+      - name: Upload latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" latest.json --repo "$GITHUB_REPOSITORY" --clobber

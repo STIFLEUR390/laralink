@@ -37,6 +37,39 @@ bun install
 bun run tauri:dev
 ```
 
+## Prise en charge Windows
+
+Laralink cible **Windows en priorité** (ainsi que Linux). Le code Rust est cross-platform :
+
+- arrêt des processus via `taskkill /PID /T /F` et détection via `tasklist`,
+- fenêtres console masquées (`CREATE_NO_WINDOW`) lors du lancement de PHP,
+- chemins et exécutables gérés avec `std::path`.
+
+### Build Windows (installateurs NSIS + MSI)
+
+Le build natif Windows est réalisé par le pipeline **GitHub Actions** (`.github/workflows/release.yml`) sur un runner `windows-latest` — il produit l'installateur `Laralink_<version>_x64-setup.exe`, le MSI, leurs signatures, et régénère `latest.json` pour l'updater.
+
+```sh
+# 1. Taguer une version (ex. v0.1.1) et pousser :
+git tag v0.1.1 && git push origin v0.1.1
+
+# 2. Le workflow build les assets Windows + Linux et crée une release brouillon.
+#    Publiez-la depuis l'onglet Releases quand les checks sont verts.
+```
+
+> 💡 Les secrets GitHub `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+> doivent être configurés pour signer les installateurs (clé générée via `bunx tauri signer generate`).
+
+### Build local sous Windows
+
+```sh
+bun install
+bun run tauri:dev      # développement
+bun run tauri:build    # installateur NSIS/MSI
+```
+
+Prérequis Windows : [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (installé par l'installateur), PHP dans le PATH (ou runtime personnalisé), et les outils [Visual Studio Build Tools](https://learn.microsoft.com/cpp/build/vscpp-step-0-installation) pour Rust.
+
 ## Structure
 
 ```text
@@ -54,8 +87,9 @@ src-tauri/      # Backend Rust (commandes, services, migrations SQLite)
 |---|---|
 | `bun run dev` | Serveur Nuxt de développement |
 | `bun run tauri:dev` | Application Tauri en mode développement |
-| `bun run tauri:build` | Build de production |
+| `bun run tauri:build` | Build de production (Linux : AppImage/deb/rpm — Windows : NSIS/MSI) |
 | `cargo test` (dans `src-tauri/`) | Tests unitaires (services + migrations) |
+| GitHub Actions | `ci.yml` (tests) + `release.yml` (build multi-plateforme + release) |
 
 ## Licence
 
