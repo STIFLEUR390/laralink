@@ -121,25 +121,39 @@
 					<span class="text-(--brand-muted)">Code source ouvert — licence</span>
 					<UBadge color="brand" variant="soft" label="MIT" />
 				</div>
-				<UButton
-					size="sm"
-					color="neutral"
-					variant="outline"
-					icon="lucide:external-link"
-					label="Dépôt GitHub"
-					@click="open('https://github.com/STIFLEUR390/laralink')"
-				/>
+				<div class="flex gap-2">
+					<UButton
+						size="sm"
+						color="brand"
+						variant="soft"
+						icon="lucide:refresh-cw"
+						label="Vérifier les mises à jour"
+						:loading="updater.checking.value"
+						@click="updater.checkForUpdates()"
+					/>
+					<UButton
+						size="sm"
+						color="neutral"
+						variant="outline"
+						icon="lucide:external-link"
+						label="Dépôt GitHub"
+						@click="open('https://github.com/STIFLEUR390/laralink')"
+					/>
+				</div>
 			</div>
 		</section>
 	</div>
 </template>
 
 <script setup lang="ts">
+	import { useUpdater } from "../composables/useUpdater";
 	import { commands, isTauriEnv } from "../services/commands";
 
 	definePageMeta({
 		layout: "default"
 	});
+
+	const updater = useUpdater();
 
 	const skills = [
 		{ label: "Laravel", icon: "lucide:layers" },

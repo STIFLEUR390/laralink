@@ -93,13 +93,7 @@ pub fn run() {
 			}
 
 			// Vérification des mises à jour en arrière-plan (releases GitHub).
-			#[cfg(desktop)]
-			{
-				let handle = app.handle().clone();
-				tauri::async_runtime::spawn(async move {
-					check_updates(handle).await;
-				});
-			}
+			// Déplacée côté frontend : vérification au démarrage + bouton dans « À propos ».
 
 			// Tray icon : afficher / quitter.
 			#[cfg(desktop)]
@@ -148,6 +142,7 @@ pub fn run() {
 		.plugin(tauri_plugin_cli::init())
 		.plugin(tauri_plugin_notification::init())
 		.plugin(tauri_plugin_opener::init())
+		.plugin(tauri_plugin_process::init())
 		.plugin(tauri_plugin_updater::Builder::new().build())
 		.invoke_handler(tauri::generate_handler![
 			// Projets
@@ -303,41 +298,4 @@ fn handle_secondary_instance(app: &tauri::AppHandle, args: Vec<String>, _cwd: St
 			_ => {}
 		}
 	});
-}
-
-// ---------------------------------------------------------------------------
-// Mises à jour
-// ---------------------------------------------------------------------------
-
-/// Vérifie les mises à jour sur les releases GitHub et notifie si besoin.
-#[cfg(desktop)]
-async fn check_updates(app: tauri::AppHandle) {
-	use tauri_plugin_notification::NotificationExt;
-	use tauri_plugin_updater::UpdaterExt;
-
-	match app.updater() {
-		Ok(updater) => match updater.check().await {
-			Ok(Some(update)) => {
-				log::info!("Mise à jour disponible : v{}", update.version);
-				let _ = app
-					.notification()
-					.builder()
-					.title("Laralink")
-					.body(format!(
-						"La version {} est disponible — consultez les releases GitHub.",
-						update.version
-					))
-					.show();
-			}
-			Ok(None) => {
-				log::info!("Aucune mise à jour disponible.");
-			}
-			Err(e) => {
-				log::debug!("Vérification des mises à jour impossible : {e}");
-			}
-		},
-		Err(e) => {
-			log::debug!("Plugin updater indisponible : {e}");
-		}
-	}
 }
