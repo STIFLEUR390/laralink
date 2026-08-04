@@ -2,7 +2,7 @@ export default defineAppConfig({
 	app: {
 		name: "Laralink",
 		description: "Lancez vos projets Laravel sur le réseau local",
-		version: "0.1.0"
+		version: "0.1.1"
 	},
 	ui: {
 		colors: {

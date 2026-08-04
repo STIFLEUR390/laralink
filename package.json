@@ -21,7 +21,8 @@
 		"tauri:build": "tauri build",
 		"tauri:build:debug": "tauri build --debug",
 		"tauri:build:ios": "tauri ios build",
-		"tauri:build:android": "tauri android build"
+		"tauri:build:android": "tauri android build",
+		"tauri:build:local": "bash scripts/tauri-build-local.sh"
 	},
 	"dependencies": {
 		"@nuxt/ui": "4.10.0",

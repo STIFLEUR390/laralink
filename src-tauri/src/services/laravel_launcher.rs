@@ -77,6 +77,12 @@ pub fn build_command(cfg: &LaunchConfig, port: u16) -> AppResult<Command> {
 		use std::os::windows::process::CommandExt;
 		cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
 	}
+	#[cfg(unix)]
+	{
+		use std::os::unix::process::CommandExt;
+		// Nouveau groupe de processus : l'arrêt tue aussi les enfants (ex : `php -S`).
+		cmd.process_group(0);
+	}
 	Ok(cmd)
 }
 
@@ -123,6 +129,11 @@ pub fn run_launch(app: AppHandle, cfg: LaunchConfig, session_id: i64) {
 			{
 				use std::os::windows::process::CommandExt;
 				cmd.creation_flags(0x0800_0000);
+			}
+			#[cfg(unix)]
+			{
+				use std::os::unix::process::CommandExt;
+				cmd.process_group(0);
 			}
 			match cmd.spawn() {
 				Ok(_) => {
@@ -238,21 +249,24 @@ pub fn run_launch(app: AppHandle, cfg: LaunchConfig, session_id: i64) {
 	}
 	emit_status(&app, cfg.project_id, session_id, "running");
 
-	// 9. Ouverture navigateur si demandé
-	if cfg.auto_open_browser {
-		use tauri_plugin_opener::OpenerExt;
-		let _ = app.opener().open_url(url.clone(), None::<&str>);
-	}
+	// 9. Ouverture navigateur + notification si toujours actif
+	// (l'utilisateur a pu arrêter entre-temps).
+	if is_project_running(&app, cfg.project_id) {
+		if cfg.auto_open_browser {
+			use tauri_plugin_opener::OpenerExt;
+			let _ = app.opener().open_url(url.clone(), None::<&str>);
+		}
 
-	// Notification native : le projet est en ligne.
-	{
-		use tauri_plugin_notification::NotificationExt;
-		let _ = app
-			.notification()
-			.builder()
-			.title("Laralink — projet en ligne")
-			.body(format!("{} est accessible sur {}", cfg.project_name, url))
-			.show();
+		// Notification native : le projet est en ligne.
+		{
+			use tauri_plugin_notification::NotificationExt;
+			let _ = app
+				.notification()
+				.builder()
+				.title("Laralink — projet en ligne")
+				.body(format!("{} est accessible sur {}", cfg.project_name, url))
+				.show();
+		}
 	}
 
 	// 10. Attente de la fin du processus
@@ -375,7 +389,11 @@ fn fail_session(app: &AppHandle, cfg: &LaunchConfig, session_id: i64, error: Opt
 		}
 		state.processes.remove(session_id);
 	}
-	emit_status(app, cfg.project_id, session_id, "error");
+	// Si l'arrêt a déjà été finalisé (arrêt manuel pendant le démarrage),
+	// on ne repasse pas le projet en erreur.
+	if !is_project_running(app, cfg.project_id) {
+		emit_status(app, cfg.project_id, session_id, "error");
+	}
 }
 
 fn finish_session(app: &AppHandle, project_id: i64, session_id: i64) {
@@ -428,6 +446,53 @@ pub fn stop_project_process(app: &AppHandle, project_id: i64) -> AppResult<()> {
 			kill_pid(pid);
 		}
 	}
+
+	// Finalisation synchrone : la base, la table mémoire et l'événement sont mis
+	// à jour immédiatement, même si le thread de lancement est encore bloqué.
+	mark_project_stopped(app, project_id);
 	Ok(())
+}
+
+/// Remet un projet à l'état « arrêté » (base + sessions + événement).
+pub fn mark_project_stopped(app: &AppHandle, project_id: i64) {
+	{
+		let state = app.state::<AppState>();
+		let Ok(db) = state.db.lock() else { return };
+		let _ = db.execute(
+			"UPDATE projects SET status = 'stopped', updated_at = ?1 WHERE id = ?2",
+			rusqlite::params![now_iso(), project_id],
+		);
+		let _ = db.execute(
+			"UPDATE runtime_sessions SET status = 'stopped', ended_at = ?1 WHERE project_id = ?2 AND status IN ('running', 'starting')",
+			rusqlite::params![now_iso(), project_id],
+		);
+	}
+	// Retire les sessions résiduelles de la table mémoire.
+	{
+		let state = app.state::<AppState>();
+		let stale: Vec<i64> = state
+			.processes
+			.running_for_project(project_id)
+			.iter()
+			.map(|r| r.session_id)
+			.collect();
+		for sid in stale {
+			state.processes.remove(sid);
+		}
+	}
+	emit_status(app, project_id, 0, "stopped");
+}
+
+/// Vrai si le projet est encore en cours d'exécution (selon la base).
+fn is_project_running(app: &AppHandle, project_id: i64) -> bool {
+	let state = app.state::<AppState>();
+	let Ok(db) = state.db.lock() else { return false };
+	db.query_row(
+		"SELECT status FROM projects WHERE id = ?1",
+		[project_id],
+		|r| r.get::<_, String>(0),
+	)
+	.map(|s| s == "running" || s == "starting")
+	.unwrap_or(false)
 }
 

@@ -245,7 +245,7 @@ fn spawn_cli_action(app_handle: tauri::AppHandle, action: String, project_id: i6
 				let _ = crate::commands::launcher::start_project(app_handle, state, project_id);
 			}
 			"stop" => {
-				let _ = crate::commands::launcher::stop_project(app_handle, state, project_id);
+				let _ = crate::commands::launcher::stop_project(app_handle, project_id);
 			}
 			_ => {}
 		}
@@ -298,7 +298,7 @@ fn handle_secondary_instance(app: &tauri::AppHandle, args: Vec<String>, _cwd: St
 				let _ = crate::commands::launcher::start_project(app_handle, state, project_id);
 			}
 			"stop" => {
-				let _ = crate::commands::launcher::stop_project(app_handle, state, project_id);
+				let _ = crate::commands::launcher::stop_project(app_handle, project_id);
 			}
 			_ => {}
 		}

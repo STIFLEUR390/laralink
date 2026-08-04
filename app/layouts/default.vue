@@ -112,7 +112,8 @@
 
 	const navItems = [
 		{ to: "/", label: "Accueil", icon: "lucide:home" },
-		{ to: "/settings", label: "Réglages", icon: "lucide:settings" }
+		{ to: "/settings", label: "Réglages", icon: "lucide:settings" },
+		{ to: "/about", label: "À propos", icon: "lucide:info" }
 	];
 
 	const lockedHint = computed(() => {

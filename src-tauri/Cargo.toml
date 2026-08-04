@@ -1,6 +1,6 @@
 [package]
 name = "laralink"
-version = "0.1.0"
+version = "0.1.1"
 description = "Laralink — gérez et lancez vos projets Laravel sur le réseau local"
 authors = ["Laralink"]
 license = "MIT"

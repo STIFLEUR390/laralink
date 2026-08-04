@@ -180,20 +180,12 @@ pub fn start_project(app: AppHandle, state: State<'_, AppState>, project_id: i64
 }
 
 #[tauri::command]
-pub fn stop_project(app: AppHandle, state: State<'_, AppState>, project_id: i64) -> AppResult<()> {
+pub fn stop_project(app: AppHandle, project_id: i64) -> AppResult<()> {
 	match laravel_launcher::stop_project_process(&app, project_id) {
 		Ok(()) => Ok(()),
 		Err(_) => {
 			// Aucun processus actif : on remet simplement l'état à jour.
-			let conn = state.db.lock().map_err(|_| AppError::Message("Verrou DB".into()))?;
-			conn.execute(
-				"UPDATE projects SET status = 'stopped', updated_at = ?1 WHERE id = ?2",
-				rusqlite::params![now_iso(), project_id],
-			)?;
-			conn.execute(
-				"UPDATE runtime_sessions SET status = 'stopped', ended_at = ?1 WHERE project_id = ?2 AND status IN ('running', 'starting')",
-				rusqlite::params![now_iso(), project_id],
-			)?;
+			laravel_launcher::mark_project_stopped(&app, project_id);
 			Ok(())
 		}
 	}

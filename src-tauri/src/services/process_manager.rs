@@ -83,7 +83,7 @@ impl ProcessManager {
 	}
 }
 
-/// Tue un processus par PID (arbre complet sur Windows).
+/// Tue un processus par PID (arbre complet sur Windows, groupe de processus sur Unix).
 pub fn kill_pid(pid: u32) {
 	#[cfg(windows)]
 	{
@@ -93,6 +93,9 @@ pub fn kill_pid(pid: u32) {
 	}
 	#[cfg(not(windows))]
 	{
+		// `php artisan serve` lance `php -S` en processus enfant : on tue d'abord
+		// tout le groupe (pid négatif) puis on retombe sur le pid direct.
+		let _ = Command::new("kill").arg("-9").arg(format!("-{pid}")).output();
 		let _ = Command::new("kill").arg("-9").arg(pid.to_string()).output();
 	}
 }
